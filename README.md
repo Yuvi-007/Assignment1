@@ -121,7 +121,7 @@ npm start
 The server will start at:
 
 ```
-http://localhost:5000
+http://localhost:3000 or http://localhost:5000
 ```
 
 ---
