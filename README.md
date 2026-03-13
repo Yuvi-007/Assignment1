@@ -278,10 +278,4 @@ All endpoints are prefixed with `/api` unless otherwise noted. It can be checked
 
 ---
 
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
 > Built with ❤️ for efficient construction site management.
