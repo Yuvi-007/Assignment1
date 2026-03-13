@@ -138,6 +138,12 @@ MONGO_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/constructio
 # JWT
 JWT_SECRET=your_super_secret_jwt_key
 
+# ADMIN Login (you can put your own data)
+ADMIN_NAME=Admin
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=supersecretpassword 
+ADMIN_EMAIL=admin@example.com
+
 ```
 
 > ⚠️ Never commit your `.env` file to version control. It is already listed in `.gitignore`.
