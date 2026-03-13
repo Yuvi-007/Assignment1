@@ -2,6 +2,12 @@ const userModel = require('../models/users.model');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+/**
+ * @description  Register a new user account. Roles are restricted to 'user' or 'manager' —
+ *               admin accounts must be seeded separately via /auth/seed-admin.
+ * @route        POST /auth/register
+ * @access       Public
+ */
 async function registerUser(req, res) {
     const { name, username, password, email, phone, role } = req.body;
 
@@ -10,6 +16,7 @@ async function registerUser(req, res) {
     }
 
     try {
+        // Prevent duplicate accounts — check both username and email in a single DB query
         const ifUserAlreadyExists = await userModel.findOne({
             $or: [{ username }, { email }]
         });
@@ -18,8 +25,11 @@ async function registerUser(req, res) {
             return res.status(400).json({ message: "User already exists." });
         }
 
+        // Hash the password with a salt round of 10 before storing — never store plain text passwords
         const hash = await bcrypt.hash(password, 10);
 
+        // Restrict self-registration to 'user' and 'manager' roles only.
+        // 'admin' can only be created via the seedAdmin route.
         const allowedRoles = ['user', 'manager'];
         const assignedRole = allowedRoles.includes(role) ? role : 'user';
 
@@ -32,15 +42,19 @@ async function registerUser(req, res) {
             role: assignedRole
         });
 
+        // Sign a JWT containing the user's id and role — role is included so
+        // middleware can authorize requests without an extra DB lookup
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
 
+        // Store the token in an httpOnly cookie so it's inaccessible to client-side JS,
+        // reducing XSS attack surface
         res.cookie("token", token, {
             httpOnly: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
         });
 
         res.status(201).json({
@@ -52,6 +66,12 @@ async function registerUser(req, res) {
     }
 }
 
+/**
+ * @description  Authenticate a user and issue a JWT via httpOnly cookie.
+ *               Accepts either username or email along with password.
+ * @route        POST /auth/login
+ * @access       Public
+ */
 async function loginUser(req, res) {
     const { username, email, password } = req.body;
 
@@ -60,6 +80,8 @@ async function loginUser(req, res) {
     }
 
     try {
+        // Allow login with either username or email — only include fields that were
+        // actually provided to avoid matching against undefined values in MongoDB
         const user = await userModel.findOne({
             $or: [
                 ...(username ? [{ username }] : []),
@@ -71,6 +93,7 @@ async function loginUser(req, res) {
             return res.status(404).json({ message: "User not found." });
         }
 
+        // Compare the incoming plain-text password against the stored bcrypt hash
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
@@ -103,6 +126,12 @@ async function loginUser(req, res) {
     }
 }
 
+/**
+ * @description  One-time route to bootstrap the first admin account using credentials
+ *               from .env. Once an admin exists, this route is permanently disabled (returns 403).
+ * @route        POST /auth/seed-admin
+ * @access       Public (disabled automatically after first use)
+ */
 async function seedAdmin(req, res) {
     try {
         const adminExists = await userModel.findOne({ role: 'admin' });

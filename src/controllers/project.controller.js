@@ -1,119 +1,85 @@
-const projectModel = require('../models/project.model');
 const dprModel = require('../models/dpr.model');
+const projectModel = require('../models/project.model');
 
-async function createProject(req, res) {
-    const { name, description, startDate, endDate, budget, location } = req.body;
+/**
+ * @description  Create a new Daily Progress Report for a given project.
+ *               The authenticated user is automatically recorded as the creator.
+ * @route        POST /dpr
+ * @access       Private (authenticated users)
+ */
+async function createDPR(req, res) {
+    const { projectId, date, work_description, weather, worker_count } = req.body;
 
-    if (!name || !startDate || !endDate || budget === undefined) {
-        return res.status(400).json({ message: "name, startDate, endDate, and budget are required." });
+    if (!projectId || !date || !work_description || !weather || worker_count === undefined) {
+        return res.status(400).json({
+            message: "projectId, date, work_description, weather, and worker_count are required."
+        });
     }
 
     try {
-        const project = await projectModel.create({
-            name,
-            description,
-            startDate,
-            endDate,
-            budget,
-            location,
-            createdBy: req.user.id
+        // Verify the referenced project exists before creating a DPR under it
+        const project = await projectModel.findById(projectId);
+        if (!project) {
+            return res.status(404).json({ message: "Project not found." });
+        }
+
+        const dpr = await dprModel.create({
+            project: projectId,
+            date,
+            work_description,
+            weather,
+            worker_count,
+            createdBy: req.user.id  // Injected by auth middleware after JWT verification
         });
 
         res.status(201).json({
-            message: "Project created successfully.",
-            projectId: project._id
+            message: "DPR created successfully.",
+            dprId: dpr._id
         });
     } catch (error) {
-        res.status(500).json({ message: "Error creating project.", error });
+        res.status(500).json({ message: "Error creating DPR.", error });
     }
 }
 
-async function listProjects(req, res) {
-    const { status, limit = 10, offset = 0 } = req.query;
+/**
+ * @description  Fetch all DPRs for a specific project. Supports optional date filtering
+ *               which queries across the full calendar day (not an exact timestamp match).
+ * @route        GET /dpr?projectId=<id>&date=<YYYY-MM-DD>
+ * @access       Private (authenticated users)
+ */
+async function listDPRs(req, res) {
+    const { projectId, date } = req.query;
 
-    const filter = {};
-    if (status) filter.status = status;
+    if (!projectId) {
+        return res.status(400).json({ message: "projectId query param is required." });
+    }
+
+    const filter = { project: projectId };
+
+    // If a date filter is provided, build a range query for that entire calendar day
+    // instead of matching an exact timestamp — handles any time recorded within that day
+    if (date) {
+        const start = new Date(date);
+        const end = new Date(date);
+        end.setDate(end.getDate() + 1);
+        filter.date = { $gte: start, $lt: end };
+    }
 
     try {
-        const projects = await projectModel.find(filter)
+        const project = await projectModel.findById(projectId);
+        if (!project) {
+            return res.status(404).json({ message: "Project not found." });
+        }
+
+        // Populate createdBy to return readable user info instead of just the ObjectId
+        const dprs = await dprModel.find(filter)
             .populate('createdBy', 'name username email')
-            .sort({ createdAt: -1 })
-            .skip(Number(offset))
-            .limit(Number(limit));
+            .sort({ date: -1 }); // Most recent DPRs first
 
-        const total = await projectModel.countDocuments(filter);
-
-        res.status(200).json({ total, projects });
+        res.status(200).json({ total: dprs.length, dprs });
     } catch (error) {
-        res.status(500).json({ message: "Error fetching projects.", error });
+        res.status(500).json({ message: "Error fetching DPRs.", error });
     }
 }
 
-async function getProject(req, res) {
-    try {
-        const project = await projectModel.findById(req.params.id)
-            .populate('createdBy', 'name username email');
-
-        if (!project) {
-            return res.status(404).json({ message: "Project not found." });
-        }
-
-        const dprs = await dprModel.find({ project: project._id })
-            .populate('createdBy', 'name username email')
-            .sort({ date: -1 });
-
-        res.status(200).json({ ...project.toObject(), dprs });
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching project.", error });
-    }
-}
-
-async function updateProject(req, res) {
-    // Only include fields that were actually sent — avoids overwriting existing data with undefined
-    const allowedFields = ['name', 'description', 'status', 'startDate', 'endDate', 'budget', 'location'];
-    const updates = {};
-    for (const field of allowedFields) {
-        if (req.body[field] !== undefined) {
-            updates[field] = req.body[field];
-        }
-    }
-
-    if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ message: "No valid fields provided to update." });
-    }
-
-    try {
-        const project = await projectModel.findByIdAndUpdate(
-            req.params.id,
-            updates,
-            { new: true, runValidators: true }
-        );
-
-        if (!project) {
-            return res.status(404).json({ message: "Project not found." });
-        }
-
-        res.status(200).json({ message: "Project updated successfully.", project });
-    } catch (error) {
-        res.status(500).json({ message: "Error updating project.", error });
-    }
-}
-
-async function deleteProject(req, res) {
-    try {
-        const project = await projectModel.findByIdAndDelete(req.params.id);
-
-        if (!project) {
-            return res.status(404).json({ message: "Project not found." });
-        }
-
-        // Cascade delete all DPRs for this project
-        await dprModel.deleteMany({ project: req.params.id });
-
-        res.status(200).json({ message: "Project deleted successfully." });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting project.", error });
-    }
-}
-
-module.exports = { createProject, listProjects, getProject, updateProject, deleteProject };
+module.exports = { createDPR, listDPRs };

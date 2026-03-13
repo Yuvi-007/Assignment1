@@ -1,6 +1,12 @@
 const dprModel = require('../models/dpr.model');
 const projectModel = require('../models/project.model');
 
+/**
+ * @description  Create a new Daily Progress Report for a given project.
+ *               The authenticated user is automatically recorded as the creator.
+ * @route        POST /dpr
+ * @access       Private (authenticated users)
+ */
 async function createDPR(req, res) {
     const { projectId, date, work_description, weather, worker_count } = req.body;
 
@@ -11,6 +17,7 @@ async function createDPR(req, res) {
     }
 
     try {
+        // Verify the referenced project exists before creating a DPR under it
         const project = await projectModel.findById(projectId);
         if (!project) {
             return res.status(404).json({ message: "Project not found." });
@@ -22,7 +29,7 @@ async function createDPR(req, res) {
             work_description,
             weather,
             worker_count,
-            createdBy: req.user.id
+            createdBy: req.user.id  // Injected by auth middleware after JWT verification
         });
 
         res.status(201).json({
@@ -34,6 +41,12 @@ async function createDPR(req, res) {
     }
 }
 
+/**
+ * @description  Fetch all DPRs for a specific project. Supports optional date filtering
+ *               which queries across the full calendar day (not an exact timestamp match).
+ * @route        GET /dpr?projectId=<id>&date=<YYYY-MM-DD>
+ * @access       Private (authenticated users)
+ */
 async function listDPRs(req, res) {
     const { projectId, date } = req.query;
 
@@ -43,6 +56,8 @@ async function listDPRs(req, res) {
 
     const filter = { project: projectId };
 
+    // If a date filter is provided, build a range query for that entire calendar day
+    // instead of matching an exact timestamp — handles any time recorded within that day
     if (date) {
         const start = new Date(date);
         const end = new Date(date);
@@ -56,9 +71,10 @@ async function listDPRs(req, res) {
             return res.status(404).json({ message: "Project not found." });
         }
 
+        // Populate createdBy to return readable user info instead of just the ObjectId
         const dprs = await dprModel.find(filter)
             .populate('createdBy', 'name username email')
-            .sort({ date: -1 });
+            .sort({ date: -1 }); // Most recent DPRs first
 
         res.status(200).json({ total: dprs.length, dprs });
     } catch (error) {
