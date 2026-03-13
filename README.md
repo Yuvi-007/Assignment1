@@ -62,11 +62,9 @@ Follow these steps in order to clone and run the project locally.
 ### Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/Yuvi-007/Assignment1
+cd Assignment1
 ```
-
-> Replace `your-username/your-repo-name` with the actual GitHub repository path.
 
 ---
 
@@ -80,31 +78,9 @@ This will install all required packages listed in `package.json`.
 
 ---
 
-### Step 3 — Set Up MongoDB
+### Step 3 — Set Up MongoDB Atlas
 
-You have two options — choose one:
-
-**Option A: Local MongoDB**
-
-1. Make sure MongoDB is installed and running on your machine:
-
-```bash
-# Check if MongoDB is running
-mongod --version
-
-# Start MongoDB service (Linux/macOS)
-sudo systemctl start mongod
-# or
-brew services start mongodb-community
-```
-
-2. Your connection string in `.env` will look like:
-
-```
-MONGO_URI=mongodb://localhost:27017/construction_db
-```
-
-**Option B: MongoDB Atlas (Cloud — Recommended)**
+**MongoDB Atlas**
 
 1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and create a free account.
 2. Create a new **cluster** (free tier is fine).
@@ -148,8 +124,6 @@ The server will start at:
 http://localhost:5000
 ```
 
-> The port can be changed via the `PORT` variable in your `.env` file.
-
 ---
 
 ## 🔐 Environment Variables
@@ -157,20 +131,13 @@ http://localhost:5000
 Create a `.env` file in the root directory with the following keys:
 
 ```env
-# Server
-PORT=5000
-NODE_ENV=development
 
 # MongoDB
-MONGO_URI=mongodb://localhost:27017/construction_db
-# For Atlas: mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/construction_db
+MONGO_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/construction_db
 
 # JWT
 JWT_SECRET=your_super_secret_jwt_key
-JWT_EXPIRES_IN=7d
 
-# Cookie
-COOKIE_EXPIRES_IN=7
 ```
 
 > ⚠️ Never commit your `.env` file to version control. It is already listed in `.gitignore`.
