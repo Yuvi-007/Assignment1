@@ -101,7 +101,7 @@ MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/constru
 Create a `.env` file in the root directory of the project:
 
 ```bash
-cp .env.example .env
+cp .env
 ```
 
 Then open `.env` and fill in your values (see [Environment Variables](#environment-variables) below).
