@@ -146,7 +146,7 @@ JWT_SECRET=your_super_secret_jwt_key
 
 ## 📡 API Endpoints
 
-All endpoints are prefixed with `/api` unless otherwise noted.
+All endpoints are prefixed with `/api` unless otherwise noted. It can be checked using Postman.
 
 ### Authentication
 
